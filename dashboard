@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주차별 CS NPS 종합 대시보드</title>
+<style>
+  :root{
+    --lg-red:#A50034;
+    --lg-red-active:#FD312E;
+    --lg-warmgray:#F5F1EA;
+    --lg-border:#E4DED2;
+    --lg-track:#EFE9DF;
+    --text-main:#1a1a1a;
+    --text-sub:#6b6b6b;
+    --card-bg:#ffffff;
+    --shadow:0 1px 3px rgba(26,26,26,0.08), 0 1px 2px rgba(26,26,26,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--lg-warmgray);
+    color:var(--text-main);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",Roboto,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  .dashboard{max-width:1180px;margin:0 auto;padding:0 18px 48px;}
+  .top-banner{
+    background:linear-gradient(135deg,var(--lg-red) 0%,#7a0027 100%);
+    color:#fff;
+    margin:0 -18px 20px;
+    padding:26px 24px 22px;
+  }
+  .top-banner h1{margin:0 0 6px;font-size:clamp(1.3rem,2.8vw,1.7rem);font-weight:800;letter-spacing:-0.01em;}
+  .top-banner .subtitle{font-size:0.85rem;opacity:0.92;}
+  nav.quicknav{
+    display:flex;flex-wrap:wrap;gap:8px;
+    margin-bottom:22px;
+    position:sticky;top:0;z-index:10;
+    background:var(--lg-warmgray);
+    padding:10px 0;
+  }
+  nav.quicknav a{
+    font-size:0.78rem;font-weight:600;
+    background:#fff;border:1px solid var(--lg-border);
+    padding:7px 12px;border-radius:20px;
+    text-decoration:none;color:var(--text-main);
+    white-space:nowrap;
+  }
+  nav.quicknav a:hover{background:var(--lg-red);color:#fff;border-color:var(--lg-red);}
+  section{margin-bottom:22px;scroll-margin-top:56px;}
+  .section-title{
+    font-size:1.12rem;font-weight:800;margin:0 0 4px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .section-title .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:24px;height:24px;border-radius:50%;
+    background:var(--lg-red);color:#fff;font-size:0.75rem;font-weight:800;
+    flex-shrink:0;
+  }
+  .section-sub{font-size:0.8rem;color:var(--text-sub);margin:0 0 14px;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  @media (max-width:760px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:420px){.kpi-grid{grid-template-columns:1fr;}}
+  .kpi-card{
+    background:var(--card-bg);border-radius:14px;padding:18px 20px;
+    box-shadow:var(--shadow);border-top:4px solid var(--lg-red);min-width:0;
+  }
+  .kpi-label{font-size:0.76rem;font-weight:700;color:var(--text-sub);letter-spacing:0.02em;margin-bottom:10px;}
+  .kpi-value{font-size:clamp(1.35rem,4vw,1.8rem);font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kpi-value .unit{font-size:0.82rem;font-weight:500;color:var(--text-sub);margin-left:3px;}
+  .kpi-sub{font-size:0.73rem;color:var(--text-sub);margin-top:8px;line-height:1.4;}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:820px){.grid-2{grid-template-columns:1fr;}}
+
+  .chart-card{
+    background:var(--card-bg);border-radius:14px;padding:20px 20px 14px;
+    box-shadow:var(--shadow);margin-bottom:16px;
+  }
+  .chart-card h3{margin:0 0 3px;font-size:0.98rem;font-weight:700;}
+  .chart-card .desc{font-size:0.76rem;color:var(--text-sub);margin-bottom:10px;}
+  .chart-wrap{width:100%;overflow-x:auto;}
+  .chart-wrap svg{width:100%;height:auto;display:block;min-width:280px;}
+  .insight-box{
+    background:#FBF3EC;border-left:3px solid var(--lg-red);
+    padding:10px 14px;border-radius:0 8px 8px 0;
+    font-size:0.8rem;color:#4a2530;line-height:1.5;margin:10px 0 14px;
+  }
+  .insight-box b{color:var(--lg-red);}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--lg-border);font-size:0.74rem;color:var(--text-sub);}
+  .legend-item{display:flex;align-items:center;gap:6px;}
+  .legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
+  .legend-line{width:16px;height:0;border-top:2px dashed var(--text-main);display:inline-block;flex-shrink:0;}
+  .footnote{margin-top:8px;font-size:0.72rem;color:var(--text-sub);}
+
+  .donut-wrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+  .donut-wrap svg{width:180px;height:180px;flex-shrink:0;}
+  .donut-legend{flex:1;min-width:160px;}
+  .donut-legend-row{display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;padding:6px 0;border-bottom:1px solid var(--lg-border);}
+  .donut-legend-row:last-child{border-bottom:none;}
+  .donut-legend-row .dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:8px;}
+  .donut-legend-row .cnt{font-weight:800;}
+
+  .table-wrap{max-height:360px;overflow:auto;border:1px solid var(--lg-border);border-radius:10px;}
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;min-width:560px;}
+  thead th{
+    position:sticky;top:0;background:var(--lg-red);color:#fff;
+    text-align:left;padding:9px 10px;font-weight:700;white-space:nowrap;z-index:1;
+  }
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--lg-border);white-space:nowrap;color:var(--text-main);}
+  tbody tr:nth-child(even){background:#FAF7F1;}
+  .badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:800;color:#fff;}
+  .badge-crit{background:var(--lg-red-active);}
+  .badge-warn{background:#C97A2E;}
+  .badge-ok{background:#8a8578;}
+  .filter-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;font-size:0.8rem;}
+  .filter-bar select{
+    padding:6px 10px;border-radius:8px;border:1px solid var(--lg-border);
+    font-size:0.8rem;background:#fff;color:var(--text-main);
+  }
+  .filter-count{font-size:0.76rem;color:var(--text-sub);margin-bottom:8px;}
+
+  footer.page-footer{margin-top:18px;font-size:0.73rem;color:var(--text-sub);text-align:center;}
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <div class="top-banner">
+    <h1>주차별 CS NPS 종합 대시보드</h1>
+    <div class="subtitle">데이터 기간: 18주차 ~ 25주차 (2026-05-01 ~ 2026-06-15) · 총 접수 1,000건 · 주차별_CS_NPS_시각화.csv 기반</div>
+  </div>
+
+  <nav class="quicknav">
+    <a href="#sec1">① 핵심 KPI</a>
+    <a href="#sec2">② 추이 분석</a>
+    <a href="#sec3">③ 카테고리별 비교</a>
+    <a href="#sec4">④ 상관관계 분석</a>
+    <a href="#sec5">⑤ 상태·이슈 트래킹</a>
+  </nav>
+
+  <section id="sec1">
+    <div class="section-title"><span class="num">1</span>핵심 KPI</div>
+    <div class="section-sub">전체 접수 건 기준 핵심 지표</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">전체 평균 NPS</div>
+        <div class="kpi-value" id="kpiAvgNps">-</div>
+        <div class="kpi-sub" id="kpiAvgNpsSub">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">평균 소요시간(일)</div>
+        <div class="kpi-value" id="kpiAvgDur">-</div>
+        <div class="kpi-sub" id="kpiAvgDurSub">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">완료율</div>
+        <div class="kpi-value" id="kpiRate">-</div>
+        <div class="kpi-sub" id="kpiRateSub">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">총 접수 건수</div>
+        <div class="kpi-value" id="kpiTotal">-</div>
+        <div class="kpi-sub" id="kpiTotalSub">-</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec2">
+    <div class="section-title"><span class="num">2</span>추이 분석</div>
+    <div class="section-sub">주차별 평균 NPS·소요시간 추이로 개선/악화 트렌드 파악</div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>주차별 평균 NPS 추이</h3>
+        <div class="desc">완료 처리 건 기준 (0~10점)</div>
+        <div class="chart-wrap"><svg id="npsTrendChart"></svg></div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#A50034;"></span>주차별 평균 NPS</span>
+          <span class="legend-item"><span class="legend-line"></span>전체 평균선</span>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>주차별 평균 소요시간 추이</h3>
+        <div class="desc">완료 처리 건 기준 (일)</div>
+        <div class="chart-wrap"><svg id="durTrendChart"></svg></div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#1a1a1a;"></span>주차별 평균 소요시간</span>
+          <span class="legend-item"><span class="legend-line"></span>전체 평균선</span>
+        </div>
+      </div>
+    </div>
+    <div class="footnote">* 18주차·25주차는 수집 기간이 짧아 표본 수가 적어 해석 시 참고가 필요합니다.</div>
+  </section>
+
+  <section id="sec3">
+    <div class="section-title"><span class="num">3</span>카테고리별 비교</div>
+    <div class="section-sub">제품·서비스 유형별 만족도/처리속도 취약점 식별</div>
+    <div class="chart-card">
+      <h3>제품 카테고리별 평균 NPS</h3>
+      <div class="desc">붉은색이 진할수록 만족도가 낮은 카테고리 (0~10점 기준)</div>
+      <div class="chart-wrap"><svg id="categoryChart"></svg></div>
+      <div class="insight-box" id="categoryInsight"></div>
+    </div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>서비스 구분별 평균 NPS</h3>
+        <div class="desc">출장수리 / 센터내방 / 원격진단</div>
+        <div class="chart-wrap"><svg id="serviceNpsChart"></svg></div>
+      </div>
+      <div class="chart-card">
+        <h3>서비스 구분별 평균 소요시간</h3>
+        <div class="desc">출장수리 / 센터내방 / 원격진단 (일)</div>
+        <div class="chart-wrap"><svg id="serviceDurChart"></svg></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec4">
+    <div class="section-title"><span class="num">4</span>상관관계 분석</div>
+    <div class="section-sub">처리 시간과 만족도의 관계, 불량 유형별 패턴 검증</div>
+    <div class="chart-card">
+      <h3>소요시간 vs NPS 산점도(버블)</h3>
+      <div class="desc">원의 크기 = 해당 (소요일, NPS) 조합의 케이스 수 · 점선 = 소요일별 평균 NPS 추이</div>
+      <div class="chart-wrap"><svg id="scatterChart"></svg></div>
+      <div class="insight-box" id="corrInsight"></div>
+    </div>
+    <div class="chart-card">
+      <h3>불량 유형별 NPS 분포</h3>
+      <div class="desc">27개 불량 유형 · 붉은색이 진할수록 만족도가 낮은 유형 (오름차순 정렬)</div>
+      <div class="chart-wrap"><svg id="defectChart"></svg></div>
+      <div class="insight-box" id="defectInsight"></div>
+    </div>
+  </section>
+
+  <section id="sec5">
+    <div class="section-title"><span class="num">5</span>상태·이슈 트래킹</div>
+    <div class="section-sub">진행상태 현황, 지연 케이스, 저NPS(Detractor) 케이스 원인 분석</div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>진행상태별 건수</h3>
+        <div class="desc">완료 / 진행중</div>
+        <div class="donut-wrap">
+          <svg id="statusDonut" viewBox="0 0 200 200"></svg>
+          <div class="donut-legend" id="donutLegend"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>진행중 지연 케이스</h3>
+        <div class="desc">기준일 2026-06-15 · 경과일 = 접수일자 ~ 기준일</div>
+        <div class="table-wrap"><table id="inprogressTable"><thead></thead><tbody></tbody></table></div>
+        <div class="footnote" id="inprogressInsight"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>NPS 낮은 케이스 (Detractor, 0~6점) — 원인 분석용</h3>
+      <div class="filter-bar">
+        <label for="catFilter">제품 카테고리:</label>
+        <select id="catFilter"><option value="">전체</option></select>
+        <label for="svcFilter">서비스 구분:</label>
+        <select id="svcFilter"><option value="">전체</option></select>
+      </div>
+      <div class="filter-count" id="detractorCount">-</div>
+      <div class="table-wrap"><table id="detractorTable"><thead></thead><tbody></tbody></table></div>
+      <div class="insight-box" id="detractorInsight"></div>
+    </div>
+  </section>
+
+  <footer class="page-footer">주차별_CS_NPS_시각화.csv 데이터 기반 자동 생성 대시보드 · LG 브랜드 컬러 적용 · 생성일 2026-07-28</footer>
+</div>
+
+<script>
+window.DATA = {"overall": {"totalCases": 1000, "doneCount": 972, "overallAvgNps": 8.18, "overallAvgDuration": 3.21, "completionRate": 97.2}, "weekly": [{"week": "18주차", "total": 66, "done": 62, "avgNps": 7.98, "avgDuration": 3.13}, {"week": "19주차", "total": 149, "done": 145, "avgNps": 8.06, "avgDuration": 3.31}, {"week": "20주차", "total": 156, "done": 155, "avgNps": 8.14, "avgDuration": 3.34}, {"week": "21주차", "total": 150, "done": 145, "avgNps": 8.3, "avgDuration": 3.3}, {"week": "22주차", "total": 154, "done": 147, "avgNps": 8.07, "avgDuration": 3.06}, {"week": "23주차", "total": 141, "done": 134, "avgNps": 8.4, "avgDuration": 3.18}, {"week": "24주차", "total": 158, "done": 158, "avgNps": 8.11, "avgDuration": 3.12}, {"week": "25주차", "total": 26, "done": 26, "avgNps": 8.73, "avgDuration": 3.12}], "categoryData": [{"category": "휘센 에어컨", "count": 149, "avgNps": 6.16, "avgDuration": 4.38}, {"category": "프라엘 뷰티", "count": 128, "avgNps": 8.23, "avgDuration": 3.03}, {"category": "그램 노트북", "count": 159, "avgNps": 8.47, "avgDuration": 2.88}, {"category": "디오스 냉장고", "count": 138, "avgNps": 8.56, "avgDuration": 3.09}, {"category": "오브제 청소기", "count": 145, "avgNps": 8.6, "avgDuration": 2.94}, {"category": "트롬 세탁기", "count": 135, "avgNps": 8.63, "avgDuration": 2.93}, {"category": "올레드 TV", "count": 146, "avgNps": 8.72, "avgDuration": 3.16}], "serviceData": [{"service": "센터내방", "count": 319, "avgNps": 8.14, "avgDuration": 3.23}, {"service": "원격진단", "count": 363, "avgNps": 8.19, "avgDuration": 3.09}, {"service": "출장수리", "count": 318, "avgNps": 8.21, "avgDuration": 3.33}], "defectData": [{"defect": "냉방 안됨", "count": 39, "avgNps": 5.76}, {"defect": "필터 교체 문의", "count": 34, "avgNps": 5.91}, {"defect": "바람 세기 약함", "count": 42, "avgNps": 6.43}, {"defect": "소음/진동", "count": 69, "avgNps": 7.6}, {"defect": "피부 접촉 센서 오류", "count": 33, "avgNps": 7.61}, {"defect": "브러쉬 미동작", "count": 34, "avgNps": 8.06}, {"defect": "배터리 충전 불량", "count": 46, "avgNps": 8.13}, {"defect": "냉동/냉방 불량", "count": 39, "avgNps": 8.19}, {"defect": "단순기능문의", "count": 41, "avgNps": 8.2}, {"defect": "도어 안열림", "count": 36, "avgNps": 8.4}, {"defect": "기기 전원 불량", "count": 32, "avgNps": 8.42}, {"defect": "사용법 문의", "count": 39, "avgNps": 8.42}, {"defect": "배수 불량", "count": 37, "avgNps": 8.46}, {"defect": "부팅 실패", "count": 32, "avgNps": 8.53}, {"defect": "와이파이 연결 안됨", "count": 40, "avgNps": 8.53}, {"defect": "충전 안됨", "count": 24, "avgNps": 8.55}, {"defect": "단순 세척 문의", "count": 39, "avgNps": 8.66}, {"defect": "온도조절 실패", "count": 29, "avgNps": 8.68}, {"defect": "배터리 방전", "count": 31, "avgNps": 8.68}, {"defect": "탈수 진동/소음", "count": 24, "avgNps": 8.75}, {"defect": "키보드 일부 안눌림", "count": 41, "avgNps": 8.76}, {"defect": "도어패킹 파손", "count": 35, "avgNps": 8.76}, {"defect": "전원불량", "count": 38, "avgNps": 8.86}, {"defect": "세제함 누수", "count": 38, "avgNps": 8.92}, {"defect": "흡입력 저하", "count": 41, "avgNps": 8.93}, {"defect": "소리안나옴", "count": 32, "avgNps": 8.94}, {"defect": "화면이상", "count": 35, "avgNps": 8.97}], "pearsonR": -0.142, "bubbleData": [{"duration": 1, "nps": 0, "count": 1}, {"duration": 1, "nps": 2, "count": 2}, {"duration": 1, "nps": 3, "count": 2}, {"duration": 1, "nps": 4, "count": 4}, {"duration": 1, "nps": 5, "count": 10}, {"duration": 1, "nps": 6, "count": 9}, {"duration": 1, "nps": 7, "count": 18}, {"duration": 1, "nps": 8, "count": 29}, {"duration": 1, "nps": 9, "count": 59}, {"duration": 1, "nps": 10, "count": 52}, {"duration": 2, "nps": 1, "count": 2}, {"duration": 2, "nps": 2, "count": 3}, {"duration": 2, "nps": 3, "count": 4}, {"duration": 2, "nps": 4, "count": 2}, {"duration": 2, "nps": 5, "count": 4}, {"duration": 2, "nps": 6, "count": 7}, {"duration": 2, "nps": 7, "count": 13}, {"duration": 2, "nps": 8, "count": 37}, {"duration": 2, "nps": 9, "count": 56}, {"duration": 2, "nps": 10, "count": 54}, {"duration": 3, "nps": 2, "count": 2}, {"duration": 3, "nps": 3, "count": 1}, {"duration": 3, "nps": 4, "count": 3}, {"duration": 3, "nps": 5, "count": 8}, {"duration": 3, "nps": 6, "count": 12}, {"duration": 3, "nps": 7, "count": 22}, {"duration": 3, "nps": 8, "count": 33}, {"duration": 3, "nps": 9, "count": 51}, {"duration": 3, "nps": 10, "count": 50}, {"duration": 4, "nps": 0, "count": 1}, {"duration": 4, "nps": 2, "count": 2}, {"duration": 4, "nps": 3, "count": 2}, {"duration": 4, "nps": 4, "count": 8}, {"duration": 4, "nps": 5, "count": 8}, {"duration": 4, "nps": 6, "count": 5}, {"duration": 4, "nps": 7, "count": 17}, {"duration": 4, "nps": 8, "count": 34}, {"duration": 4, "nps": 9, "count": 53}, {"duration": 4, "nps": 10, "count": 63}, {"duration": 5, "nps": 0, "count": 1}, {"duration": 5, "nps": 2, "count": 3}, {"duration": 5, "nps": 4, "count": 5}, {"duration": 5, "nps": 5, "count": 4}, {"duration": 5, "nps": 6, "count": 11}, {"duration": 5, "nps": 7, "count": 22}, {"duration": 5, "nps": 8, "count": 35}, {"duration": 5, "nps": 9, "count": 47}, {"duration": 5, "nps": 10, "count": 49}, {"duration": 6, "nps": 1, "count": 1}, {"duration": 6, "nps": 3, "count": 1}, {"duration": 6, "nps": 4, "count": 7}, {"duration": 6, "nps": 5, "count": 3}, {"duration": 6, "nps": 6, "count": 2}, {"duration": 6, "nps": 8, "count": 4}, {"duration": 6, "nps": 9, "count": 1}, {"duration": 7, "nps": 3, "count": 1}, {"duration": 7, "nps": 5, "count": 2}, {"duration": 7, "nps": 6, "count": 1}, {"duration": 7, "nps": 7, "count": 1}, {"duration": 7, "nps": 8, "count": 6}, {"duration": 7, "nps": 9, "count": 1}, {"duration": 8, "nps": 0, "count": 1}, {"duration": 8, "nps": 1, "count": 1}, {"duration": 8, "nps": 2, "count": 1}, {"duration": 8, "nps": 4, "count": 1}, {"duration": 8, "nps": 5, "count": 3}, {"duration": 8, "nps": 6, "count": 1}, {"duration": 8, "nps": 7, "count": 4}, {"duration": 8, "nps": 8, "count": 6}, {"duration": 8, "nps": 9, "count": 3}], "durationTrend": [{"duration": 1, "avgNps": 8.27, "count": 186}, {"duration": 2, "avgNps": 8.36, "count": 182}, {"duration": 3, "avgNps": 8.29, "count": 182}, {"duration": 4, "avgNps": 8.34, "count": 193}, {"duration": 5, "avgNps": 8.24, "count": 177}, {"duration": 6, "avgNps": 5.26, "count": 19}, {"duration": 7, "avgNps": 6.92, "count": 12}, {"duration": 8, "avgNps": 6.24, "count": 21}], "statusCount": {"완료": 972, "진행중": 28}, "refDate": "2026-06-15", "inProgressList": [{"caseId": "CS270601", "week": "18주차", "date": "2026-05-01", "category": "올레드 TV", "service": "센터내방", "defect": "화면이상", "elapsedDays": 45}, {"caseId": "CS270199", "week": "18주차", "date": "2026-05-02", "category": "프라엘 뷰티", "service": "원격진단", "defect": "기기 전원 불량", "elapsedDays": 44}, {"caseId": "CS270835", "week": "18주차", "date": "2026-05-02", "category": "올레드 TV", "service": "출장수리", "defect": "단순기능문의", "elapsedDays": 44}, {"caseId": "CS270236", "week": "18주차", "date": "2026-05-03", "category": "오브제 청소기", "service": "센터내방", "defect": "단순 세척 문의", "elapsedDays": 43}, {"caseId": "CS270740", "week": "19주차", "date": "2026-05-04", "category": "프라엘 뷰티", "service": "출장수리", "defect": "충전 안됨", "elapsedDays": 42}, {"caseId": "CS270004", "week": "19주차", "date": "2026-05-05", "category": "올레드 TV", "service": "센터내방", "defect": "전원불량", "elapsedDays": 41}, {"caseId": "CS270393", "week": "19주차", "date": "2026-05-09", "category": "프라엘 뷰티", "service": "원격진단", "defect": "사용법 문의", "elapsedDays": 37}, {"caseId": "CS270141", "week": "19주차", "date": "2026-05-10", "category": "오브제 청소기", "service": "출장수리", "defect": "브러쉬 미동작", "elapsedDays": 36}, {"caseId": "CS270650", "week": "20주차", "date": "2026-05-14", "category": "올레드 TV", "service": "센터내방", "defect": "화면이상", "elapsedDays": 32}, {"caseId": "CS270937", "week": "21주차", "date": "2026-05-18", "category": "디오스 냉장고", "service": "원격진단", "defect": "도어패킹 파손", "elapsedDays": 28}, {"caseId": "CS270505", "week": "21주차", "date": "2026-05-19", "category": "올레드 TV", "service": "원격진단", "defect": "전원불량", "elapsedDays": 27}, {"caseId": "CS270168", "week": "21주차", "date": "2026-05-22", "category": "프라엘 뷰티", "service": "센터내방", "defect": "충전 안됨", "elapsedDays": 24}, {"caseId": "CS270250", "week": "21주차", "date": "2026-05-24", "category": "디오스 냉장고", "service": "출장수리", "defect": "온도조절 실패", "elapsedDays": 22}, {"caseId": "CS270956", "week": "21주차", "date": "2026-05-24", "category": "휘센 에어컨", "service": "원격진단", "defect": "냉방 안됨", "elapsedDays": 22}, {"caseId": "CS270840", "week": "22주차", "date": "2026-05-25", "category": "그램 노트북", "service": "원격진단", "defect": "키보드 일부 안눌림", "elapsedDays": 21}, {"caseId": "CS270460", "week": "22주차", "date": "2026-05-26", "category": "오브제 청소기", "service": "원격진단", "defect": "흡입력 저하", "elapsedDays": 20}, {"caseId": "CS270852", "week": "22주차", "date": "2026-05-26", "category": "그램 노트북", "service": "원격진단", "defect": "배터리 충전 불량", "elapsedDays": 20}, {"caseId": "CS270342", "week": "22주차", "date": "2026-05-27", "category": "디오스 냉장고", "service": "출장수리", "defect": "냉동/냉방 불량", "elapsedDays": 19}, {"caseId": "CS270673", "week": "22주차", "date": "2026-05-30", "category": "휘센 에어컨", "service": "센터내방", "defect": "소음/진동", "elapsedDays": 16}, {"caseId": "CS270790", "week": "22주차", "date": "2026-05-30", "category": "그램 노트북", "service": "출장수리", "defect": "키보드 일부 안눌림", "elapsedDays": 16}, {"caseId": "CS270366", "week": "22주차", "date": "2026-05-31", "category": "그램 노트북", "service": "센터내방", "defect": "키보드 일부 안눌림", "elapsedDays": 15}, {"caseId": "CS270213", "week": "23주차", "date": "2026-06-01", "category": "트롬 세탁기", "service": "센터내방", "defect": "도어 안열림", "elapsedDays": 14}, {"caseId": "CS270470", "week": "23주차", "date": "2026-06-01", "category": "디오스 냉장고", "service": "센터내방", "defect": "냉동/냉방 불량", "elapsedDays": 14}, {"caseId": "CS270478", "week": "23주차", "date": "2026-06-02", "category": "디오스 냉장고", "service": "출장수리", "defect": "도어패킹 파손", "elapsedDays": 13}, {"caseId": "CS270050", "week": "23주차", "date": "2026-06-04", "category": "디오스 냉장고", "service": "센터내방", "defect": "소음/진동", "elapsedDays": 11}, {"caseId": "CS270619", "week": "23주차", "date": "2026-06-04", "category": "디오스 냉장고", "service": "원격진단", "defect": "냉동/냉방 불량", "elapsedDays": 11}, {"caseId": "CS270694", "week": "23주차", "date": "2026-06-05", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "elapsedDays": 10}, {"caseId": "CS270989", "week": "23주차", "date": "2026-06-06", "category": "오브제 청소기", "service": "센터내방", "defect": "브러쉬 미동작", "elapsedDays": 9}], "detractors": [{"caseId": "CS270990", "week": "24주차", "date": "2026-06-11", "category": "휘센 에어컨", "service": "출장수리", "defect": "필터 교체 문의", "nps": 0, "duration": 8}, {"caseId": "CS270803", "week": "21주차", "date": "2026-05-19", "category": "휘센 에어컨", "service": "출장수리", "defect": "바람 세기 약함", "nps": 0, "duration": 5}, {"caseId": "CS270122", "week": "22주차", "date": "2026-05-28", "category": "휘센 에어컨", "service": "센터내방", "defect": "바람 세기 약함", "nps": 0, "duration": 4}, {"caseId": "CS270079", "week": "24주차", "date": "2026-06-14", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 0, "duration": 1}, {"caseId": "CS270166", "week": "20주차", "date": "2026-05-11", "category": "휘센 에어컨", "service": "출장수리", "defect": "냉방 안됨", "nps": 1, "duration": 8}, {"caseId": "CS270151", "week": "19주차", "date": "2026-05-06", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 1, "duration": 6}, {"caseId": "CS270360", "week": "19주차", "date": "2026-05-05", "category": "휘센 에어컨", "service": "원격진단", "defect": "냉방 안됨", "nps": 1, "duration": 2}, {"caseId": "CS270567", "week": "24주차", "date": "2026-06-11", "category": "휘센 에어컨", "service": "센터내방", "defect": "필터 교체 문의", "nps": 1, "duration": 2}, {"caseId": "CS270057", "week": "20주차", "date": "2026-05-13", "category": "휘센 에어컨", "service": "센터내방", "defect": "필터 교체 문의", "nps": 2, "duration": 8}, {"caseId": "CS270413", "week": "24주차", "date": "2026-06-08", "category": "트롬 세탁기", "service": "출장수리", "defect": "배수 불량", "nps": 2, "duration": 5}, {"caseId": "CS270546", "week": "23주차", "date": "2026-06-05", "category": "휘센 에어컨", "service": "센터내방", "defect": "필터 교체 문의", "nps": 2, "duration": 5}, {"caseId": "CS270602", "week": "21주차", "date": "2026-05-22", "category": "프라엘 뷰티", "service": "센터내방", "defect": "피부 접촉 센서 오류", "nps": 2, "duration": 5}, {"caseId": "CS270117", "week": "18주차", "date": "2026-05-02", "category": "휘센 에어컨", "service": "원격진단", "defect": "바람 세기 약함", "nps": 2, "duration": 4}, {"caseId": "CS270457", "week": "24주차", "date": "2026-06-10", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 2, "duration": 4}, {"caseId": "CS270484", "week": "19주차", "date": "2026-05-09", "category": "디오스 냉장고", "service": "출장수리", "defect": "냉동/냉방 불량", "nps": 2, "duration": 3}, {"caseId": "CS270531", "week": "21주차", "date": "2026-05-18", "category": "올레드 TV", "service": "원격진단", "defect": "단순기능문의", "nps": 2, "duration": 3}, {"caseId": "CS270305", "week": "20주차", "date": "2026-05-13", "category": "그램 노트북", "service": "원격진단", "defect": "와이파이 연결 안됨", "nps": 2, "duration": 2}, {"caseId": "CS270456", "week": "21주차", "date": "2026-05-20", "category": "휘센 에어컨", "service": "원격진단", "defect": "바람 세기 약함", "nps": 2, "duration": 2}, {"caseId": "CS270686", "week": "19주차", "date": "2026-05-06", "category": "프라엘 뷰티", "service": "원격진단", "defect": "기기 전원 불량", "nps": 2, "duration": 2}, {"caseId": "CS270068", "week": "23주차", "date": "2026-06-04", "category": "트롬 세탁기", "service": "원격진단", "defect": "도어 안열림", "nps": 2, "duration": 1}, {"caseId": "CS270254", "week": "20주차", "date": "2026-05-13", "category": "오브제 청소기", "service": "출장수리", "defect": "브러쉬 미동작", "nps": 2, "duration": 1}, {"caseId": "CS270615", "week": "20주차", "date": "2026-05-14", "category": "휘센 에어컨", "service": "원격진단", "defect": "냉방 안됨", "nps": 3, "duration": 7}, {"caseId": "CS270685", "week": "19주차", "date": "2026-05-04", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 3, "duration": 6}, {"caseId": "CS270106", "week": "24주차", "date": "2026-06-13", "category": "휘센 에어컨", "service": "센터내방", "defect": "소음/진동", "nps": 3, "duration": 4}, {"caseId": "CS270398", "week": "22주차", "date": "2026-05-28", "category": "프라엘 뷰티", "service": "출장수리", "defect": "피부 접촉 센서 오류", "nps": 3, "duration": 4}, {"caseId": "CS270087", "week": "24주차", "date": "2026-06-12", "category": "휘센 에어컨", "service": "센터내방", "defect": "필터 교체 문의", "nps": 3, "duration": 3}, {"caseId": "CS270609", "week": "18주차", "date": "2026-05-02", "category": "올레드 TV", "service": "원격진단", "defect": "단순기능문의", "nps": 3, "duration": 2}, {"caseId": "CS270719", "week": "24주차", "date": "2026-06-13", "category": "그램 노트북", "service": "출장수리", "defect": "배터리 충전 불량", "nps": 3, "duration": 2}, {"caseId": "CS270864", "week": "20주차", "date": "2026-05-14", "category": "프라엘 뷰티", "service": "원격진단", "defect": "사용법 문의", "nps": 3, "duration": 2}, {"caseId": "CS270924", "week": "22주차", "date": "2026-05-30", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 3, "duration": 2}, {"caseId": "CS270381", "week": "22주차", "date": "2026-05-26", "category": "트롬 세탁기", "service": "원격진단", "defect": "탈수 진동/소음", "nps": 3, "duration": 1}, {"caseId": "CS270875", "week": "21주차", "date": "2026-05-18", "category": "휘센 에어컨", "service": "출장수리", "defect": "소음/진동", "nps": 3, "duration": 1}, {"caseId": "CS270158", "week": "21주차", "date": "2026-05-21", "category": "휘센 에어컨", "service": "원격진단", "defect": "소음/진동", "nps": 4, "duration": 8}, {"caseId": "CS270073", "week": "23주차", "date": "2026-06-07", "category": "휘센 에어컨", "service": "센터내방", "defect": "필터 교체 문의", "nps": 4, "duration": 6}, {"caseId": "CS270186", "week": "19주차", "date": "2026-05-10", "category": "휘센 에어컨", "service": "원격진단", "defect": "냉방 안됨", "nps": 4, "duration": 6}, {"caseId": "CS270238", "week": "24주차", "date": "2026-06-13", "category": "휘센 에어컨", "service": "센터내방", "defect": "소음/진동", "nps": 4, "duration": 6}, {"caseId": "CS270281", "week": "20주차", "date": "2026-05-16", "category": "휘센 에어컨", "service": "원격진단", "defect": "바람 세기 약함", "nps": 4, "duration": 6}, {"caseId": "CS270476", "week": "24주차", "date": "2026-06-13", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 4, "duration": 6}, {"caseId": "CS270537", "week": "19주차", "date": "2026-05-04", "category": "휘센 에어컨", "service": "출장수리", "defect": "냉방 안됨", "nps": 4, "duration": 6}, {"caseId": "CS270952", "week": "22주차", "date": "2026-05-26", "category": "휘센 에어컨", "service": "출장수리", "defect": "바람 세기 약함", "nps": 4, "duration": 6}, {"caseId": "CS270481", "week": "23주차", "date": "2026-06-02", "category": "휘센 에어컨", "service": "출장수리", "defect": "바람 세기 약함", "nps": 4, "duration": 5}, {"caseId": "CS270507", "week": "18주차", "date": "2026-05-01", "category": "디오스 냉장고", "service": "출장수리", "defect": "냉동/냉방 불량", "nps": 4, "duration": 5}, {"caseId": "CS270538", "week": "22주차", "date": "2026-05-30", "category": "프라엘 뷰티", "service": "출장수리", "defect": "피부 접촉 센서 오류", "nps": 4, "duration": 5}, {"caseId": "CS270670", "week": "18주차", "date": "2026-05-02", "category": "휘센 에어컨", "service": "출장수리", "defect": "냉방 안됨", "nps": 4, "duration": 5}, {"caseId": "CS270921", "week": "22주차", "date": "2026-05-31", "category": "프라엘 뷰티", "service": "센터내방", "defect": "피부 접촉 센서 오류", "nps": 4, "duration": 5}, {"caseId": "CS270277", "week": "20주차", "date": "2026-05-13", "category": "휘센 에어컨", "service": "센터내방", "defect": "바람 세기 약함", "nps": 4, "duration": 4}, {"caseId": "CS270415", "week": "19주차", "date": "2026-05-10", "category": "휘센 에어컨", "service": "출장수리", "defect": "소음/진동", "nps": 4, "duration": 4}, {"caseId": "CS270479", "week": "24주차", "date": "2026-06-13", "category": "그램 노트북", "service": "출장수리", "defect": "부팅 실패", "nps": 4, "duration": 4}, {"caseId": "CS270604", "week": "19주차", "date": "2026-05-09", "category": "프라엘 뷰티", "service": "원격진단", "defect": "사용법 문의", "nps": 4, "duration": 4}, {"caseId": "CS270647", "week": "23주차", "date": "2026-06-06", "category": "그램 노트북", "service": "출장수리", "defect": "키보드 일부 안눌림", "nps": 4, "duration": 4}, {"caseId": "CS270745", "week": "18주차", "date": "2026-05-01", "category": "휘센 에어컨", "service": "원격진단", "defect": "냉방 안됨", "nps": 4, "duration": 4}, {"caseId": "CS270901", "week": "21주차", "date": "2026-05-20", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 4, "duration": 4}, {"caseId": "CS270953", "week": "22주차", "date": "2026-05-25", "category": "그램 노트북", "service": "출장수리", "defect": "부팅 실패", "nps": 4, "duration": 4}, {"caseId": "CS270547", "week": "22주차", "date": "2026-05-28", "category": "오브제 청소기", "service": "센터내방", "defect": "배터리 방전", "nps": 4, "duration": 3}, {"caseId": "CS270821", "week": "21주차", "date": "2026-05-23", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 4, "duration": 3}, {"caseId": "CS270929", "week": "22주차", "date": "2026-05-28", "category": "그램 노트북", "service": "출장수리", "defect": "배터리 충전 불량", "nps": 4, "duration": 3}, {"caseId": "CS270053", "week": "23주차", "date": "2026-06-02", "category": "휘센 에어컨", "service": "센터내방", "defect": "바람 세기 약함", "nps": 4, "duration": 2}, {"caseId": "CS270259", "week": "23주차", "date": "2026-06-06", "category": "디오스 냉장고", "service": "센터내방", "defect": "냉동/냉방 불량", "nps": 4, "duration": 2}, {"caseId": "CS270183", "week": "22주차", "date": "2026-05-29", "category": "올레드 TV", "service": "원격진단", "defect": "화면이상", "nps": 4, "duration": 1}, {"caseId": "CS270226", "week": "22주차", "date": "2026-05-25", "category": "프라엘 뷰티", "service": "원격진단", "defect": "피부 접촉 센서 오류", "nps": 4, "duration": 1}, {"caseId": "CS270904", "week": "24주차", "date": "2026-06-12", "category": "오브제 청소기", "service": "출장수리", "defect": "배터리 방전", "nps": 4, "duration": 1}, {"caseId": "CS270969", "week": "23주차", "date": "2026-06-06", "category": "휘센 에어컨", "service": "원격진단", "defect": "소음/진동", "nps": 4, "duration": 1}, {"caseId": "CS270161", "week": "20주차", "date": "2026-05-11", "category": "휘센 에어컨", "service": "출장수리", "defect": "냉방 안됨", "nps": 5, "duration": 8}, {"caseId": "CS270796", "week": "22주차", "date": "2026-05-28", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 5, "duration": 8}, {"caseId": "CS270909", "week": "22주차", "date": "2026-05-31", "category": "휘센 에어컨", "service": "원격진단", "defect": "바람 세기 약함", "nps": 5, "duration": 8}, {"caseId": "CS270328", "week": "24주차", "date": "2026-06-14", "category": "휘센 에어컨", "service": "센터내방", "defect": "바람 세기 약함", "nps": 5, "duration": 7}, {"caseId": "CS270870", "week": "24주차", "date": "2026-06-13", "category": "휘센 에어컨", "service": "원격진단", "defect": "소음/진동", "nps": 5, "duration": 7}, {"caseId": "CS270148", "week": "24주차", "date": "2026-06-13", "category": "휘센 에어컨", "service": "센터내방", "defect": "소음/진동", "nps": 5, "duration": 6}, {"caseId": "CS270269", "week": "24주차", "date": "2026-06-09", "category": "휘센 에어컨", "service": "센터내방", "defect": "필터 교체 문의", "nps": 5, "duration": 6}, {"caseId": "CS270917", "week": "22주차", "date": "2026-05-30", "category": "휘센 에어컨", "service": "원격진단", "defect": "냉방 안됨", "nps": 5, "duration": 6}, {"caseId": "CS270588", "week": "20주차", "date": "2026-05-13", "category": "디오스 냉장고", "service": "센터내방", "defect": "소음/진동", "nps": 5, "duration": 5}, {"caseId": "CS270680", "week": "22주차", "date": "2026-05-28", "category": "그램 노트북", "service": "센터내방", "defect": "부팅 실패", "nps": 5, "duration": 5}, {"caseId": "CS270717", "week": "19주차", "date": "2026-05-09", "category": "오브제 청소기", "service": "원격진단", "defect": "브러쉬 미동작", "nps": 5, "duration": 5}, {"caseId": "CS270943", "week": "20주차", "date": "2026-05-17", "category": "그램 노트북", "service": "출장수리", "defect": "배터리 충전 불량", "nps": 5, "duration": 5}, {"caseId": "CS270125", "week": "24주차", "date": "2026-06-14", "category": "휘센 에어컨", "service": "출장수리", "defect": "소음/진동", "nps": 5, "duration": 4}, {"caseId": "CS270175", "week": "19주차", "date": "2026-05-09", "category": "그램 노트북", "service": "센터내방", "defect": "배터리 충전 불량", "nps": 5, "duration": 4}, {"caseId": "CS270231", "week": "23주차", "date": "2026-06-02", "category": "오브제 청소기", "service": "출장수리", "defect": "단순 세척 문의", "nps": 5, "duration": 4}, {"caseId": "CS270280", "week": "20주차", "date": "2026-05-15", "category": "휘센 에어컨", "service": "출장수리", "defect": "필터 교체 문의", "nps": 5, "duration": 4}, {"caseId": "CS270321", "week": "22주차", "date": "2026-05-31", "category": "올레드 TV", "service": "출장수리", "defect": "단순기능문의", "nps": 5, "duration": 4}, {"caseId": "CS270372", "week": "23주차", "date": "2026-06-06", "category": "올레드 TV", "service": "출장수리", "defect": "단순기능문의", "nps": 5, "duration": 4}, {"caseId": "CS270754", "week": "20주차", "date": "2026-05-16", "category": "프라엘 뷰티", "service": "출장수리", "defect": "충전 안됨", "nps": 5, "duration": 4}, {"caseId": "CS270887", "week": "21주차", "date": "2026-05-20", "category": "휘센 에어컨", "service": "출장수리", "defect": "바람 세기 약함", "nps": 5, "duration": 4}, {"caseId": "CS270015", "week": "22주차", "date": "2026-05-31", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 5, "duration": 3}, {"caseId": "CS270047", "week": "18주차", "date": "2026-05-02", "category": "디오스 냉장고", "service": "출장수리", "defect": "도어패킹 파손", "nps": 5, "duration": 3}, {"caseId": "CS270153", "week": "22주차", "date": "2026-05-31", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 5, "duration": 3}, {"caseId": "CS270437", "week": "19주차", "date": "2026-05-08", "category": "프라엘 뷰티", "service": "출장수리", "defect": "충전 안됨", "nps": 5, "duration": 3}, {"caseId": "CS270555", "week": "18주차", "date": "2026-05-01", "category": "트롬 세탁기", "service": "출장수리", "defect": "도어 안열림", "nps": 5, "duration": 3}, {"caseId": "CS270749", "week": "20주차", "date": "2026-05-15", "category": "그램 노트북", "service": "원격진단", "defect": "와이파이 연결 안됨", "nps": 5, "duration": 3}, {"caseId": "CS270757", "week": "20주차", "date": "2026-05-15", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 5, "duration": 3}, {"caseId": "CS270795", "week": "19주차", "date": "2026-05-05", "category": "오브제 청소기", "service": "출장수리", "defect": "흡입력 저하", "nps": 5, "duration": 3}, {"caseId": "CS270262", "week": "20주차", "date": "2026-05-16", "category": "그램 노트북", "service": "센터내방", "defect": "와이파이 연결 안됨", "nps": 5, "duration": 2}, {"caseId": "CS270343", "week": "24주차", "date": "2026-06-13", "category": "올레드 TV", "service": "센터내방", "defect": "전원불량", "nps": 5, "duration": 2}, {"caseId": "CS270582", "week": "22주차", "date": "2026-05-31", "category": "트롬 세탁기", "service": "센터내방", "defect": "세제함 누수", "nps": 5, "duration": 2}, {"caseId": "CS270732", "week": "19주차", "date": "2026-05-05", "category": "트롬 세탁기", "service": "센터내방", "defect": "도어 안열림", "nps": 5, "duration": 2}, {"caseId": "CS270041", "week": "20주차", "date": "2026-05-12", "category": "휘센 에어컨", "service": "원격진단", "defect": "소음/진동", "nps": 5, "duration": 1}, {"caseId": "CS270191", "week": "18주차", "date": "2026-05-02", "category": "휘센 에어컨", "service": "원격진단", "defect": "소음/진동", "nps": 5, "duration": 1}, {"caseId": "CS270396", "week": "24주차", "date": "2026-06-10", "category": "그램 노트북", "service": "센터내방", "defect": "부팅 실패", "nps": 5, "duration": 1}, {"caseId": "CS270559", "week": "19주차", "date": "2026-05-06", "category": "디오스 냉장고", "service": "원격진단", "defect": "온도조절 실패", "nps": 5, "duration": 1}, {"caseId": "CS270627", "week": "22주차", "date": "2026-05-29", "category": "트롬 세탁기", "service": "원격진단", "defect": "배수 불량", "nps": 5, "duration": 1}, {"caseId": "CS270781", "week": "24주차", "date": "2026-06-11", "category": "그램 노트북", "service": "출장수리", "defect": "배터리 충전 불량", "nps": 5, "duration": 1}, {"caseId": "CS270805", "week": "18주차", "date": "2026-05-02", "category": "프라엘 뷰티", "service": "원격진단", "defect": "기기 전원 불량", "nps": 5, "duration": 1}, {"caseId": "CS270812", "week": "20주차", "date": "2026-05-13", "category": "그램 노트북", "service": "원격진단", "defect": "와이파이 연결 안됨", "nps": 5, "duration": 1}, {"caseId": "CS270826", "week": "23주차", "date": "2026-06-04", "category": "디오스 냉장고", "service": "원격진단", "defect": "소음/진동", "nps": 5, "duration": 1}, {"caseId": "CS270827", "week": "19주차", "date": "2026-05-09", "category": "오브제 청소기", "service": "원격진단", "defect": "브러쉬 미동작", "nps": 5, "duration": 1}, {"caseId": "CS270767", "week": "18주차", "date": "2026-05-03", "category": "휘센 에어컨", "service": "출장수리", "defect": "필터 교체 문의", "nps": 6, "duration": 8}, {"caseId": "CS270593", "week": "24주차", "date": "2026-06-12", "category": "휘센 에어컨", "service": "센터내방", "defect": "소음/진동", "nps": 6, "duration": 7}, {"caseId": "CS270013", "week": "21주차", "date": "2026-05-21", "category": "휘센 에어컨", "service": "출장수리", "defect": "필터 교체 문의", "nps": 6, "duration": 6}, {"caseId": "CS270692", "week": "19주차", "date": "2026-05-09", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 6, "duration": 6}, {"caseId": "CS270098", "week": "20주차", "date": "2026-05-16", "category": "프라엘 뷰티", "service": "원격진단", "defect": "기기 전원 불량", "nps": 6, "duration": 5}, {"caseId": "CS270142", "week": "22주차", "date": "2026-05-30", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 6, "duration": 5}, {"caseId": "CS270167", "week": "23주차", "date": "2026-06-07", "category": "휘센 에어컨", "service": "출장수리", "defect": "필터 교체 문의", "nps": 6, "duration": 5}, {"caseId": "CS270314", "week": "23주차", "date": "2026-06-06", "category": "디오스 냉장고", "service": "출장수리", "defect": "도어패킹 파손", "nps": 6, "duration": 5}, {"caseId": "CS270438", "week": "20주차", "date": "2026-05-16", "category": "디오스 냉장고", "service": "센터내방", "defect": "냉동/냉방 불량", "nps": 6, "duration": 5}, {"caseId": "CS270458", "week": "19주차", "date": "2026-05-06", "category": "디오스 냉장고", "service": "원격진단", "defect": "냉동/냉방 불량", "nps": 6, "duration": 5}, {"caseId": "CS270565", "week": "21주차", "date": "2026-05-19", "category": "휘센 에어컨", "service": "센터내방", "defect": "바람 세기 약함", "nps": 6, "duration": 5}, {"caseId": "CS270595", "week": "19주차", "date": "2026-05-07", "category": "올레드 TV", "service": "원격진단", "defect": "단순기능문의", "nps": 6, "duration": 5}, {"caseId": "CS270608", "week": "18주차", "date": "2026-05-02", "category": "올레드 TV", "service": "원격진단", "defect": "전원불량", "nps": 6, "duration": 5}, {"caseId": "CS270665", "week": "18주차", "date": "2026-05-01", "category": "트롬 세탁기", "service": "원격진단", "defect": "도어 안열림", "nps": 6, "duration": 5}, {"caseId": "CS270934", "week": "23주차", "date": "2026-06-06", "category": "휘센 에어컨", "service": "출장수리", "defect": "바람 세기 약함", "nps": 6, "duration": 5}, {"caseId": "CS270190", "week": "19주차", "date": "2026-05-09", "category": "오브제 청소기", "service": "센터내방", "defect": "배터리 방전", "nps": 6, "duration": 4}, {"caseId": "CS270216", "week": "23주차", "date": "2026-06-06", "category": "올레드 TV", "service": "센터내방", "defect": "단순기능문의", "nps": 6, "duration": 4}, {"caseId": "CS270681", "week": "19주차", "date": "2026-05-08", "category": "프라엘 뷰티", "service": "센터내방", "defect": "피부 접촉 센서 오류", "nps": 6, "duration": 4}, {"caseId": "CS270687", "week": "21주차", "date": "2026-05-19", "category": "디오스 냉장고", "service": "센터내방", "defect": "냉동/냉방 불량", "nps": 6, "duration": 4}, {"caseId": "CS271000", "week": "20주차", "date": "2026-05-15", "category": "프라엘 뷰티", "service": "센터내방", "defect": "피부 접촉 센서 오류", "nps": 6, "duration": 4}, {"caseId": "CS270038", "week": "20주차", "date": "2026-05-11", "category": "휘센 에어컨", "service": "센터내방", "defect": "소음/진동", "nps": 6, "duration": 3}, {"caseId": "CS270132", "week": "21주차", "date": "2026-05-24", "category": "디오스 냉장고", "service": "센터내방", "defect": "도어패킹 파손", "nps": 6, "duration": 3}, {"caseId": "CS270341", "week": "20주차", "date": "2026-05-13", "category": "올레드 TV", "service": "출장수리", "defect": "단순기능문의", "nps": 6, "duration": 3}, {"caseId": "CS270367", "week": "21주차", "date": "2026-05-20", "category": "휘센 에어컨", "service": "센터내방", "defect": "냉방 안됨", "nps": 6, "duration": 3}, {"caseId": "CS270474", "week": "22주차", "date": "2026-05-26", "category": "트롬 세탁기", "service": "출장수리", "defect": "탈수 진동/소음", "nps": 6, "duration": 3}, {"caseId": "CS270489", "week": "20주차", "date": "2026-05-14", "category": "올레드 TV", "service": "출장수리", "defect": "소리안나옴", "nps": 6, "duration": 3}, {"caseId": "CS270528", "week": "21주차", "date": "2026-05-18", "category": "트롬 세탁기", "service": "센터내방", "defect": "배수 불량", "nps": 6, "duration": 3}, {"caseId": "CS270618", "week": "20주차", "date": "2026-05-11", "category": "오브제 청소기", "service": "원격진단", "defect": "흡입력 저하", "nps": 6, "duration": 3}, {"caseId": "CS270731", "week": "18주차", "date": "2026-05-02", "category": "올레드 TV", "service": "원격진단", "defect": "소리안나옴", "nps": 6, "duration": 3}, {"caseId": "CS270758", "week": "18주차", "date": "2026-05-03", "category": "오브제 청소기", "service": "출장수리", "defect": "브러쉬 미동작", "nps": 6, "duration": 3}, {"caseId": "CS270778", "week": "20주차", "date": "2026-05-11", "category": "트롬 세탁기", "service": "원격진단", "defect": "배수 불량", "nps": 6, "duration": 3}, {"caseId": "CS270855", "week": "22주차", "date": "2026-05-31", "category": "그램 노트북", "service": "센터내방", "defect": "와이파이 연결 안됨", "nps": 6, "duration": 3}, {"caseId": "CS270100", "week": "23주차", "date": "2026-06-07", "category": "프라엘 뷰티", "service": "센터내방", "defect": "피부 접촉 센서 오류", "nps": 6, "duration": 2}, {"caseId": "CS270245", "week": "22주차", "date": "2026-05-26", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 6, "duration": 2}, {"caseId": "CS270271", "week": "23주차", "date": "2026-06-07", "category": "올레드 TV", "service": "원격진단", "defect": "화면이상", "nps": 6, "duration": 2}, {"caseId": "CS270404", "week": "24주차", "date": "2026-06-12", "category": "트롬 세탁기", "service": "원격진단", "defect": "세제함 누수", "nps": 6, "duration": 2}, {"caseId": "CS270787", "week": "23주차", "date": "2026-06-06", "category": "프라엘 뷰티", "service": "센터내방", "defect": "기기 전원 불량", "nps": 6, "duration": 2}, {"caseId": "CS270830", "week": "25주차", "date": "2026-06-15", "category": "디오스 냉장고", "service": "원격진단", "defect": "온도조절 실패", "nps": 6, "duration": 2}, {"caseId": "CS270954", "week": "24주차", "date": "2026-06-09", "category": "휘센 에어컨", "service": "출장수리", "defect": "냉방 안됨", "nps": 6, "duration": 2}, {"caseId": "CS270024", "week": "23주차", "date": "2026-06-03", "category": "디오스 냉장고", "service": "센터내방", "defect": "온도조절 실패", "nps": 6, "duration": 1}, {"caseId": "CS270129", "week": "19주차", "date": "2026-05-09", "category": "휘센 에어컨", "service": "원격진단", "defect": "소음/진동", "nps": 6, "duration": 1}, {"caseId": "CS270318", "week": "18주차", "date": "2026-05-02", "category": "그램 노트북", "service": "원격진단", "defect": "배터리 충전 불량", "nps": 6, "duration": 1}, {"caseId": "CS270358", "week": "20주차", "date": "2026-05-16", "category": "그램 노트북", "service": "센터내방", "defect": "와이파이 연결 안됨", "nps": 6, "duration": 1}, {"caseId": "CS270374", "week": "20주차", "date": "2026-05-16", "category": "그램 노트북", "service": "센터내방", "defect": "배터리 충전 불량", "nps": 6, "duration": 1}, {"caseId": "CS270497", "week": "21주차", "date": "2026-05-24", "category": "프라엘 뷰티", "service": "원격진단", "defect": "피부 접촉 센서 오류", "nps": 6, "duration": 1}, {"caseId": "CS270679", "week": "21주차", "date": "2026-05-18", "category": "휘센 에어컨", "service": "원격진단", "defect": "필터 교체 문의", "nps": 6, "duration": 1}, {"caseId": "CS270722", "week": "21주차", "date": "2026-05-24", "category": "그램 노트북", "service": "출장수리", "defect": "배터리 충전 불량", "nps": 6, "duration": 1}, {"caseId": "CS270936", "week": "21주차", "date": "2026-05-18", "category": "휘센 에어컨", "service": "센터내방", "defect": "바람 세기 약함", "nps": 6, "duration": 1}]};
+</script>
+<script>
+(function(){
+  "use strict";
+  var DATA = window.DATA;
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
+  var COLOR = {
+    primary: "#A50034",
+    alert: "#FD312E",
+    dark: "#1a1a1a",
+    gray: "#6b6b6b",
+    track: "#EFE9DF",
+    lightTint: "#E4DED2"
+  };
+
+  function el(tag, attrs){
+    var e = document.createElementNS(SVG_NS, tag);
+    for (var k in attrs){ e.setAttribute(k, attrs[k]); }
+    return e;
+  }
+  function fmt(num, digits){ return Number(num).toFixed(digits == null ? 2 : digits); }
+  function addTitle(node, text){
+    var t = document.createElementNS(SVG_NS, "title");
+    t.textContent = text;
+    node.appendChild(t);
+  }
+  function hexToRgb(hex){
+    var v = parseInt(hex.replace("#",""),16);
+    return [(v>>16)&255,(v>>8)&255,v&255];
+  }
+  function rgbToHex(r,g,b){
+    function h(x){ x=Math.max(0,Math.min(255,Math.round(x))); return x.toString(16).padStart(2,"0"); }
+    return "#"+h(r)+h(g)+h(b);
+  }
+  function lerpColor(c1,c2,t){
+    var a=hexToRgb(c1), b=hexToRgb(c2);
+    return rgbToHex(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);
+  }
+  function colorScale(value, minVal, maxVal){
+    var t = maxVal > minVal ? (maxVal - value) / (maxVal - minVal) : 0;
+    t = Math.max(0, Math.min(1, t));
+    return lerpColor(COLOR.lightTint, COLOR.primary, t);
+  }
+
+  // ---------------- KPI ----------------
+  function renderKPIs(){
+    var o = DATA.overall;
+    document.getElementById("kpiAvgNps").innerHTML = fmt(o.overallAvgNps) + '<span class="unit">/10</span>';
+    document.getElementById("kpiAvgNpsSub").textContent = "완료 " + o.doneCount.toLocaleString() + "건 기준";
+
+    document.getElementById("kpiAvgDur").innerHTML = fmt(o.overallAvgDuration,2) + '<span class="unit">일</span>';
+    document.getElementById("kpiAvgDurSub").textContent = "완료 처리 " + o.doneCount.toLocaleString() + "건 평균";
+
+    document.getElementById("kpiRate").innerHTML = fmt(o.completionRate,1) + '<span class="unit">%</span>';
+    document.getElementById("kpiRateSub").textContent = "완료 " + o.doneCount.toLocaleString() + "건 / 전체 " + o.totalCases.toLocaleString() + "건";
+
+    document.getElementById("kpiTotal").innerHTML = o.totalCases.toLocaleString() + '<span class="unit">건</span>';
+    document.getElementById("kpiTotalSub").textContent = "18주차 ~ 25주차 누적 접수";
+  }
+
+  // ---------------- Generic line chart (single series) ----------------
+  function renderLineChart(svg, data, opts){
+    var W = 520, H = 300;
+    var margin = { top: 24, right: 20, bottom: 40, left: 40 };
+    var innerW = W - margin.left - margin.right;
+    var innerH = H - margin.top - margin.bottom;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = "";
+
+    var yMin = opts.yMin, yMax = opts.yMax;
+    function xFor(i){ return margin.left + innerW * (i / (data.length - 1)); }
+    function yFor(v){ return margin.top + innerH * (1 - (v - yMin) / (yMax - yMin)); }
+
+    var step = opts.gridStep;
+    for (var v = yMin; v <= yMax + 0.0001; v += step){
+      var gy = yFor(v);
+      svg.appendChild(el("line", {
+        x1: margin.left, x2: margin.left + innerW, y1: gy, y2: gy,
+        stroke: Math.abs(v - yMin) < 0.0001 ? "#cbb9be" : "#eee6da",
+        "stroke-width": Math.abs(v - yMin) < 0.0001 ? 1.4 : 1
+      }));
+      var lbl = el("text", { x: margin.left - 8, y: gy + 4, "text-anchor": "end", "font-size": 10.5, fill: "#8a8578" });
+      lbl.textContent = fmt(v, opts.labelDigits != null ? opts.labelDigits : 0);
+      svg.appendChild(lbl);
+    }
+
+    if (opts.avgValue != null){
+      var avgY = yFor(opts.avgValue);
+      svg.appendChild(el("line", {
+        x1: margin.left, x2: margin.left + innerW, y1: avgY, y2: avgY,
+        stroke: "#1a1a1a", "stroke-width": 1.3, "stroke-dasharray": "5,4", opacity: 0.5
+      }));
+      var avgLbl = el("text", { x: margin.left + innerW, y: avgY - 6, "text-anchor": "end", "font-size": 10, fill: "#1a1a1a", "font-weight": 700 });
+      avgLbl.textContent = "평균 " + fmt(opts.avgValue, opts.labelDigits != null ? opts.labelDigits : 2);
+      svg.appendChild(avgLbl);
+    }
+
+    var pts = data.map(function(d,i){ return [xFor(i), yFor(d[opts.valueKey])]; });
+    var areaPath = "M " + pts[0][0] + "," + yFor(yMin) + " ";
+    pts.forEach(function(p){ areaPath += "L " + p[0] + "," + p[1] + " "; });
+    areaPath += "L " + pts[pts.length-1][0] + "," + yFor(yMin) + " Z";
+    svg.appendChild(el("path", { d: areaPath, fill: opts.color, opacity: 0.08 }));
+
+    var linePath = "M " + pts.map(function(p){ return p[0] + "," + p[1]; }).join(" L ");
+    svg.appendChild(el("path", { d: linePath, fill: "none", stroke: opts.color, "stroke-width": 2.4, "stroke-linejoin":"round", "stroke-linecap":"round" }));
+
+    data.forEach(function(d,i){
+      var x = pts[i][0], y = pts[i][1];
+      var circle = el("circle", { cx:x, cy:y, r:4.5, fill: opts.color, stroke:"#fff", "stroke-width":1.6 });
+      addTitle(circle, opts.tooltip(d));
+      svg.appendChild(circle);
+      var vLabel = el("text", { x:x, y:y-10, "text-anchor":"middle", "font-size":10.5, "font-weight":700, fill:"#1a1a1a" });
+      vLabel.textContent = fmt(d[opts.valueKey], opts.labelDigits != null ? opts.labelDigits : 2);
+      svg.appendChild(vLabel);
+      var xLabel = el("text", { x:x, y:H-margin.bottom+20, "text-anchor":"middle", "font-size":10.5, fill:"#6b6b6b" });
+      xLabel.textContent = d.week.replace("주차","");
+      svg.appendChild(xLabel);
+    });
+  }
+
+  // ---------------- Generic horizontal bar chart ----------------
+  function renderHBarChart(svg, data, opts){
+    var rowH = opts.rowHeight;
+    var W = 860;
+    var margin = { top: 6, right: 54, bottom: 6, left: opts.labelWidth };
+    var innerW = W - margin.left - margin.right;
+    var H = margin.top + margin.bottom + data.length * rowH;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = "";
+
+    var maxVal = opts.maxValue;
+    data.forEach(function(d, i){
+      var val = d[opts.valueKey];
+      var barW = innerW * (val / maxVal);
+      var y = margin.top + i * rowH;
+      var barH = rowH * 0.62;
+      var color = opts.colorFn(d, i);
+
+      var label = el("text", { x: margin.left - 8, y: y + barH/2 + rowH*0.19 + 1, "text-anchor":"end", "font-size": opts.fontSize, fill:"#333" });
+      label.textContent = d[opts.labelKey];
+      svg.appendChild(label);
+
+      svg.appendChild(el("rect", { x: margin.left, y: y + (rowH-barH)/2, width: innerW, height: barH, rx:4, fill: COLOR.track }));
+
+      var rect = el("rect", { x: margin.left, y: y + (rowH-barH)/2, width: Math.max(barW,2), height: barH, rx:4, fill: color });
+      addTitle(rect, opts.tooltip(d));
+      svg.appendChild(rect);
+
+      var vLabel = el("text", { x: margin.left + barW + 6, y: y + barH/2 + rowH*0.19 + 1, "font-size": opts.fontSize, "font-weight":700, fill:"#1a1a1a" });
+      vLabel.textContent = opts.valueFormat(val);
+      svg.appendChild(vLabel);
+    });
+  }
+
+  // ---------------- Bubble / scatter chart ----------------
+  function renderBubbleChart(svg, bubbleData, trendData){
+    var W = 860, H = 440;
+    var margin = { top: 20, right: 24, bottom: 40, left: 40 };
+    var innerW = W - margin.left - margin.right;
+    var innerH = H - margin.top - margin.bottom;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = "";
+
+    var xMin=1, xMax=8, yMin=0, yMax=10;
+    function xFor(v){ return margin.left + innerW * ((v - xMin) / (xMax - xMin)); }
+    function yFor(v){ return margin.top + innerH * (1 - (v - yMin) / (yMax - yMin)); }
+
+    for (var v=0; v<=10; v+=2){
+      var gy = yFor(v);
+      svg.appendChild(el("line", { x1:margin.left, x2:margin.left+innerW, y1:gy, y2:gy, stroke: v===0 ? "#cbb9be" : "#eee6da", "stroke-width": v===0?1.4:1 }));
+      var lbl = el("text", { x: margin.left-8, y: gy+4, "text-anchor":"end", "font-size":10.5, fill:"#8a8578" });
+      lbl.textContent = v;
+      svg.appendChild(lbl);
+    }
+    for (var d=1; d<=8; d++){
+      var gx = xFor(d);
+      svg.appendChild(el("line", { x1:gx, x2:gx, y1:margin.top, y2:margin.top+innerH, stroke:"#f2ece1", "stroke-width":1 }));
+      var xlbl = el("text", { x:gx, y: margin.top+innerH+18, "text-anchor":"middle", "font-size":10.5, fill:"#6b6b6b" });
+      xlbl.textContent = d + "일";
+      svg.appendChild(xlbl);
+    }
+
+    var maxCount = Math.max.apply(null, bubbleData.map(function(b){ return b.count; }));
+    bubbleData.forEach(function(b){
+      var r = 2.5 + 15 * Math.sqrt(b.count / maxCount);
+      var c = el("circle", { cx:xFor(b.duration), cy:yFor(b.nps), r:r, fill:COLOR.primary, opacity:0.42, stroke:COLOR.primary, "stroke-width":1 });
+      addTitle(c, b.duration + "일 소요 · NPS " + b.nps + "점 · " + b.count + "건");
+      svg.appendChild(c);
+    });
+
+    var pts = trendData.map(function(t){ return [xFor(t.duration), yFor(t.avgNps)]; });
+    var path = "M " + pts.map(function(p){ return p[0]+","+p[1]; }).join(" L ");
+    svg.appendChild(el("path", { d:path, fill:"none", stroke:"#1a1a1a", "stroke-width":2, "stroke-dasharray":"6,4" }));
+    trendData.forEach(function(t,i){
+      var c = el("circle", { cx:pts[i][0], cy:pts[i][1], r:4, fill:"#1a1a1a", stroke:"#fff", "stroke-width":1.4 });
+      addTitle(c, t.duration + "일 평균 NPS " + fmt(t.avgNps) + " (n=" + t.count + ")");
+      svg.appendChild(c);
+    });
+
+  }
+
+  // ---------------- Donut chart ----------------
+  function polarToCartesian(cx,cy,r,angleDeg){
+    var rad = (angleDeg - 90) * Math.PI/180;
+    return { x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad) };
+  }
+  function arcPath(cx,cy,rOuter,rInner,startAngle,endAngle){
+    var startOuter = polarToCartesian(cx,cy,rOuter,endAngle);
+    var endOuter = polarToCartesian(cx,cy,rOuter,startAngle);
+    var startInner = polarToCartesian(cx,cy,rInner,endAngle);
+    var endInner = polarToCartesian(cx,cy,rInner,startAngle);
+    var largeArc = (endAngle-startAngle) > 180 ? 1 : 0;
+    return ["M",startOuter.x,startOuter.y,"A",rOuter,rOuter,0,largeArc,0,endOuter.x,endOuter.y,
+            "L",endInner.x,endInner.y,"A",rInner,rInner,0,largeArc,1,startInner.x,startInner.y,"Z"].join(" ");
+  }
+  function renderDonut(svg, items){
+    svg.innerHTML = "";
+    var cx=100, cy=100, rOuter=90, rInner=54;
+    var total = items.reduce(function(a,b){ return a+b.value; }, 0);
+    var angle = 0;
+    items.forEach(function(it){
+      var sweep = it.value/total*360;
+      var path = el("path", { d: arcPath(cx,cy,rOuter,rInner,angle,angle+sweep), fill: it.color });
+      addTitle(path, it.label + ": " + it.value.toLocaleString() + "건 (" + fmt(it.value/total*100,1) + "%)");
+      svg.appendChild(path);
+      angle += sweep;
+    });
+    var centerVal = el("text", { x:cx, y:cy-4, "text-anchor":"middle", "font-size":20, "font-weight":800, fill:"#1a1a1a" });
+    centerVal.textContent = total.toLocaleString();
+    svg.appendChild(centerVal);
+    var centerLbl = el("text", { x:cx, y:cy+16, "text-anchor":"middle", "font-size":11, fill:"#6b6b6b" });
+    centerLbl.textContent = "총 건수";
+    svg.appendChild(centerLbl);
+
+    var legendEl = document.getElementById("donutLegend");
+    legendEl.innerHTML = "";
+    items.forEach(function(it){
+      var row = document.createElement("div");
+      row.className = "donut-legend-row";
+      var pct = fmt(it.value/total*100,1);
+      row.innerHTML = '<span><span class="dot" style="background:'+it.color+'"></span>'+it.label+'</span><span class="cnt">'+it.value.toLocaleString()+'건 ('+pct+'%)</span>';
+      legendEl.appendChild(row);
+    });
+  }
+
+  // ---------------- Tables ----------------
+  function buildTable(tableEl, columns, rows, rowRenderer){
+    var thead = tableEl.querySelector("thead");
+    var tbody = tableEl.querySelector("tbody");
+    thead.innerHTML = "<tr>" + columns.map(function(c){ return "<th>"+c+"</th>"; }).join("") + "</tr>";
+    tbody.innerHTML = "";
+    rows.forEach(function(r){
+      var tr = document.createElement("tr");
+      tr.innerHTML = rowRenderer(r);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function delayBadge(days){
+    if (days >= 30) return '<span class="badge badge-crit">'+days+'일 지연</span>';
+    if (days >= 14) return '<span class="badge badge-warn">'+days+'일 지연</span>';
+    return '<span class="badge badge-ok">'+days+'일 지연</span>';
+  }
+  function npsBadge(n){
+    if (n <= 3) return '<span class="badge badge-crit">'+n+'점</span>';
+    if (n <= 6) return '<span class="badge badge-warn">'+n+'점</span>';
+    return '<span class="badge badge-ok">'+n+'점</span>';
+  }
+
+  function renderInProgressTable(){
+    var list = DATA.inProgressList;
+    buildTable(document.getElementById("inprogressTable"),
+      ["접수번호","주차","접수일자","카테고리","서비스","불량유형","경과일"],
+      list,
+      function(r){
+        return "<td>"+r.caseId+"</td><td>"+r.week+"</td><td>"+r.date+"</td><td>"+r.category+"</td><td>"+r.service+"</td><td>"+r.defect+"</td><td>"+delayBadge(r.elapsedDays)+"</td>";
+      });
+    var longest = list[0];
+    var over30 = list.filter(function(r){ return r.elapsedDays >= 30; }).length;
+    document.getElementById("inprogressInsight").textContent =
+      "진행중 " + list.length + "건 중 30일 이상 장기 지연 " + over30 + "건. 최장 지연 케이스는 " + longest.caseId + "(" + longest.category + ", " + longest.elapsedDays + "일 경과) 입니다.";
+  }
+
+  function renderDetractorTable(){
+    var all = DATA.detractors;
+    var catFilter = document.getElementById("catFilter");
+    var svcFilter = document.getElementById("svcFilter");
+
+    var cats = Array.from(new Set(all.map(function(d){ return d.category; }))).sort();
+    var svcs = Array.from(new Set(all.map(function(d){ return d.service; }))).sort();
+    cats.forEach(function(c){ var o=document.createElement("option"); o.value=c; o.textContent=c; catFilter.appendChild(o); });
+    svcs.forEach(function(s){ var o=document.createElement("option"); o.value=s; o.textContent=s; svcFilter.appendChild(o); });
+
+    function draw(){
+      var cf = catFilter.value, sf = svcFilter.value;
+      var filtered = all.filter(function(d){
+        return (!cf || d.category===cf) && (!sf || d.service===sf);
+      });
+      buildTable(document.getElementById("detractorTable"),
+        ["접수번호","주차","제품카테고리","서비스구분","불량유형","NPS","소요시간"],
+        filtered,
+        function(r){
+          return "<td>"+r.caseId+"</td><td>"+r.week+"</td><td>"+r.category+"</td><td>"+r.service+"</td><td>"+r.defect+"</td><td>"+npsBadge(r.nps)+"</td><td>"+r.duration+"일</td>";
+        });
+      document.getElementById("detractorCount").textContent =
+        "전체 Detractor " + all.length + "건 중 " + filtered.length + "건 표시";
+    }
+    catFilter.addEventListener("change", draw);
+    svcFilter.addEventListener("change", draw);
+    draw();
+
+    var catCount = {};
+    all.forEach(function(d){ catCount[d.category] = (catCount[d.category]||0)+1; });
+    var topCat = Object.keys(catCount).sort(function(a,b){ return catCount[b]-catCount[a]; })[0];
+    var topCatShare = fmt(catCount[topCat]/all.length*100,1);
+    var overallCatShare = fmt((DATA.categoryData.find(function(c){return c.category===topCat;}).count / DATA.overall.totalCases)*100,1);
+    document.getElementById("detractorInsight").innerHTML =
+      "<b>"+topCat+"</b>이(가) 전체 Detractor "+all.length+"건 중 "+catCount[topCat]+"건("+topCatShare+"%)을 차지 — 전체 접수 대비 카테고리 비중("+overallCatShare+"%)보다 훨씬 높아, 해당 제품의 품질/AS 프로세스 집중 점검이 필요합니다.";
+  }
+
+  // ---------------- Insight text builders ----------------
+  function renderCategoryInsight(){
+    var worst = DATA.categoryData[0];
+    var overall = DATA.overall.overallAvgNps;
+    document.getElementById("categoryInsight").innerHTML =
+      "<b>"+worst.category+"</b>(NPS "+fmt(worst.avgNps)+")이 전체 평균("+fmt(overall)+") 대비 가장 낮으며, 평균 소요시간도 "+fmt(worst.avgDuration)+"일로 전체 평균("+fmt(DATA.overall.overallAvgDuration)+"일)보다 깁니다. 나머지 6개 카테고리는 모두 8.2점 이상으로 양호합니다.";
+  }
+  function renderDefectInsight(){
+    var worst3 = DATA.defectData.slice(0,3);
+    document.getElementById("defectInsight").innerHTML =
+      "하위 3개 불량 유형(<b>"+worst3.map(function(d){return d.defect;}).join(", ")+"</b>)이 모두 휘센 에어컨 관련 항목입니다. 반대로 화면이상·소리안나옴·흡입력 저하 등은 8.9점 이상으로 만족도가 높습니다.";
+  }
+  function renderCorrInsight(){
+    var t = DATA.durationTrend;
+    var normal = t.filter(function(d){ return d.duration<=5; });
+    var slow = t.filter(function(d){ return d.duration>=6; });
+    var avgNormal = normal.reduce(function(a,b){return a+b.avgNps*b.count;},0) / normal.reduce(function(a,b){return a+b.count;},0);
+    var avgSlow = slow.reduce(function(a,b){return a+b.avgNps*b.count;},0) / slow.reduce(function(a,b){return a+b.count;},0);
+    document.getElementById("corrInsight").innerHTML =
+      "전체 상관계수 r = <b>"+DATA.pearsonR+"</b> (약한 음의 상관)이지만, 소요시간 1~5일 구간은 평균 NPS "+fmt(avgNormal)+"점으로 안정적인 반면, <b>6일 이상 지연되면 평균 NPS가 "+fmt(avgSlow)+"점으로 급락</b>합니다. 처리 시간 자체보다 '6일 이상 장기화'가 만족도 하락의 임계점으로 보입니다.";
+  }
+
+  // ---------------- Init ----------------
+  document.addEventListener("DOMContentLoaded", function(){
+    renderKPIs();
+
+    renderLineChart(document.getElementById("npsTrendChart"), DATA.weekly, {
+      valueKey:"avgNps", color:COLOR.primary, yMin:0, yMax:10, gridStep:2, labelDigits:2,
+      avgValue: DATA.overall.overallAvgNps,
+      tooltip: function(d){ return d.week+" · 평균 NPS "+fmt(d.avgNps)+" (완료 "+d.done+"건 / 접수 "+d.total+"건)"; }
+    });
+    renderLineChart(document.getElementById("durTrendChart"), DATA.weekly, {
+      valueKey:"avgDuration", color:COLOR.dark, yMin:0, yMax:5, gridStep:1, labelDigits:1,
+      avgValue: DATA.overall.overallAvgDuration,
+      tooltip: function(d){ return d.week+" · 평균 소요시간 "+fmt(d.avgDuration,1)+"일 (완료 "+d.done+"건)"; }
+    });
+
+    var catMin = Math.min.apply(null, DATA.categoryData.map(function(d){return d.avgNps;}));
+    var catMax = Math.max.apply(null, DATA.categoryData.map(function(d){return d.avgNps;}));
+    renderHBarChart(document.getElementById("categoryChart"), DATA.categoryData, {
+      labelKey:"category", valueKey:"avgNps", maxValue:10, rowHeight:32, labelWidth:120, fontSize:12.5,
+      colorFn: function(d){ return colorScale(d.avgNps, catMin, catMax); },
+      valueFormat: function(v){ return fmt(v); },
+      tooltip: function(d){ return d.category+" · 평균 NPS "+fmt(d.avgNps)+" · 평균 소요 "+fmt(d.avgDuration)+"일 · n="+d.count; }
+    });
+
+    renderHBarChart(document.getElementById("serviceNpsChart"), DATA.serviceData, {
+      labelKey:"service", valueKey:"avgNps", maxValue:10, rowHeight:38, labelWidth:70, fontSize:12,
+      colorFn: function(){ return COLOR.primary; },
+      valueFormat: function(v){ return fmt(v); },
+      tooltip: function(d){ return d.service+" · 평균 NPS "+fmt(d.avgNps)+" · n="+d.count; }
+    });
+    renderHBarChart(document.getElementById("serviceDurChart"), DATA.serviceData, {
+      labelKey:"service", valueKey:"avgDuration", maxValue:5, rowHeight:38, labelWidth:70, fontSize:12,
+      colorFn: function(){ return COLOR.dark; },
+      valueFormat: function(v){ return fmt(v,2)+"일"; },
+      tooltip: function(d){ return d.service+" · 평균 소요 "+fmt(d.avgDuration,2)+"일 · n="+d.count; }
+    });
+
+    renderBubbleChart(document.getElementById("scatterChart"), DATA.bubbleData, DATA.durationTrend);
+
+    var defMin = Math.min.apply(null, DATA.defectData.map(function(d){return d.avgNps;}));
+    var defMax = Math.max.apply(null, DATA.defectData.map(function(d){return d.avgNps;}));
+    renderHBarChart(document.getElementById("defectChart"), DATA.defectData, {
+      labelKey:"defect", valueKey:"avgNps", maxValue:10, rowHeight:17, labelWidth:126, fontSize:10.5,
+      colorFn: function(d){ return colorScale(d.avgNps, defMin, defMax); },
+      valueFormat: function(v){ return fmt(v); },
+      tooltip: function(d){ return d.defect+" · 평균 NPS "+fmt(d.avgNps)+" · n="+d.count; }
+    });
+
+    renderDonut(document.getElementById("statusDonut"), [
+      { label:"완료", value: DATA.statusCount["완료"], color: COLOR.dark },
+      { label:"진행중", value: DATA.statusCount["진행중"], color: COLOR.alert }
+    ]);
+
+    renderInProgressTable();
+    renderDetractorTable();
+
+    renderCategoryInsight();
+    renderDefectInsight();
+    renderCorrInsight();
+
+    window.addEventListener("resize", function(){ /* viewBox scaling handles responsiveness */ });
+  });
+})();
+</script>
+</body>
+</html>
