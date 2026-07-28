@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주차별 CS NPS 종합 대시보드</title>
+<!-- Pretendard 가변/고정 웹폰트 CDN 불러오기 -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
   :root{
     --lg-red:#A50034;
@@ -21,7 +23,12 @@
   body{
     background:var(--lg-warmgray);
     color:var(--text-main);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",Roboto,Arial,sans-serif;
+    /* 
+      Pretendard 폰트를 최우선으로 적용함.
+      네트워크 장애나 외부 CDN 차단 시에도 화면 깨짐을 방지하기 위해 
+      OS별 기본 시스템 폰트(-apple-system, Segoe UI, Malgun Gothic 등)를 폴백(fallback)으로 지정하여 예외 상황에 대비함.
+    */
+    font-family:"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", Roboto, Arial, sans-serif;
     -webkit-font-smoothing:antialiased;
   }
   a{color:inherit;}
