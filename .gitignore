@@ -1,0 +1,9 @@
+# 엑셀 임시 파일 및 락 파일 제외 (엑셀이 열려 있을 때 생성되는 ~$ 파일 방지)
+~$*.xlsx
+~$*.xls
+~$*.*
+
+# OS 생성 파일
+Thumbs.db
+Desktop.ini
+.DS_Store
